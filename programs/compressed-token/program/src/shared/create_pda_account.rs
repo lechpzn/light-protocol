@@ -49,7 +49,6 @@ pub fn create_pda_account(
 
     let bump_bytes = [config.bump];
     let mut seed_vec: ArrayVec<Seed, 8> = ArrayVec::new();
-
     for &seed in config.seeds {
         seed_vec.push(Seed::from(seed));
     }
@@ -64,6 +63,9 @@ pub fn create_pda_account(
         config.account_size as u64,
         &solana_pubkey::Pubkey::new_from_array(*config.owner_program_id),
     );
+    use spl_pod::solana_msg::msg;
+
+    msg!("create_account_ix...");
 
     let pinocchio_instruction = pinocchio::instruction::Instruction {
         program_id: &create_account_ix.program_id.to_bytes(),

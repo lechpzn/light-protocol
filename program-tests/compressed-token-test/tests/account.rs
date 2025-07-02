@@ -1,9 +1,14 @@
 // #![cfg(feature = "test-sbf")]
 
 use anchor_spl::token_2022::spl_token_2022;
-use light_compressed_token_sdk::instructions::{
-    close::close_account, create_associated_token_account::derive_ctoken_ata,
-    create_associated_token_account_idempotent, create_token_account,
+use light_compressed_token::withdraw_funding_pool::WithdrawFundingPoolAccounts;
+use light_compressed_token_sdk::{
+    compressible::{initialize_compressible_token_account, InitializeCompressibleTokenAccount},
+    instructions::{
+        close::close_account, create_associated_token_account::derive_ctoken_ata,
+        create_associated_token_account_idempotent, create_token_account,
+    },
+    SPL_TOKEN_PROGRAM_ID,
 };
 use light_compressible::rent::{get_rent, RentConfig, SLOTS_PER_EPOCH};
 use light_ctoken_types::COMPRESSIBLE_TOKEN_ACCOUNT_SIZE;
@@ -759,6 +764,7 @@ async fn test_spl_to_ctoken_transfer() -> Result<(), RpcError> {
         &recipient,
         mint,
         &payer,
+        SPL_TOKEN_PROGRAM_ID.into(),
     )
     .await?;
 

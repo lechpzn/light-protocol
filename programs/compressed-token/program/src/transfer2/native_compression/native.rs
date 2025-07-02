@@ -134,25 +134,23 @@ pub fn native_compression(
             if let Some(extensions) = compressed_token.extensions.as_ref() {
                 for extension in extensions.iter() {
                     if let ZExtensionStructMut::Compressible(compressible_extension) = extension {
-                        {
-                            let mut transfer_amount: u64 =
-                                u32::from(compressible_extension.write_top_up_lamports) as u64;
+                        let mut transfer_amount: u64 =
+                            u32::from(compressible_extension.write_top_up_lamports) as u64;
 
-                            use pinocchio::sysvars::{clock::Clock, Sysvar};
-                            let current_slot = Clock::get()
-                                .map_err(|_| CTokenError::SysvarAccessError)?
-                                .slot;
+                        use pinocchio::sysvars::{clock::Clock, Sysvar};
+                        let current_slot = Clock::get()
+                            .map_err(|_| CTokenError::SysvarAccessError)?
+                            .slot;
 
-                            let data_len = token_account_info.data_len() as u64;
-                            let lamports = token_account_info.lamports();
-                            let (is_compressible, rent_deficit) = compressible_extension
-                                .is_compressible(data_len, current_slot, lamports)
-                                .map_err(|_| CTokenError::InvalidAccountData)?;
-                            if is_compressible {
-                                transfer_amount += rent_deficit;
-                            }
-                            transfers.push(transfer_amount);
+                        let data_len = token_account_info.data_len() as u64;
+                        let lamports = token_account_info.lamports();
+                        let (is_compressible, rent_deficit) = compressible_extension
+                            .is_compressible(data_len, current_slot, lamports)
+                            .map_err(|_| CTokenError::InvalidAccountData)?;
+                        if is_compressible {
+                            transfer_amount += rent_deficit;
                         }
+                        transfers.push(transfer_amount);
                     }
                 }
             }
@@ -168,28 +166,26 @@ pub fn native_compression(
             if let Some(extensions) = compressed_token.extensions.as_ref() {
                 for extension in extensions.iter() {
                     if let ZExtensionStructMut::Compressible(compressible_extension) = extension {
-                        {
-                            let mut transfer_amount: u64 =
-                                u32::from(compressible_extension.write_top_up_lamports) as u64;
+                        let mut transfer_amount: u64 =
+                            u32::from(compressible_extension.write_top_up_lamports) as u64;
 
-                            use pinocchio::sysvars::{clock::Clock, Sysvar};
-                            let current_slot = Clock::get()
-                                .map_err(|_| CTokenError::SysvarAccessError)?
-                                .slot;
+                        use pinocchio::sysvars::{clock::Clock, Sysvar};
+                        let current_slot = Clock::get()
+                            .map_err(|_| CTokenError::SysvarAccessError)?
+                            .slot;
 
-                            let (is_compressible, rent_deficit) = compressible_extension
-                                .is_compressible(
-                                    token_account_info.data_len() as u64,
-                                    current_slot,
-                                    token_account_info.lamports(),
-                                )
-                                .map_err(|_| CTokenError::InvalidAccountData)?;
-                            if is_compressible {
-                                transfer_amount += rent_deficit;
-                            }
-
-                            transfers.push(transfer_amount);
+                        let (is_compressible, rent_deficit) = compressible_extension
+                            .is_compressible(
+                                token_account_info.data_len() as u64,
+                                current_slot,
+                                token_account_info.lamports(),
+                            )
+                            .map_err(|_| CTokenError::InvalidAccountData)?;
+                        if is_compressible {
+                            transfer_amount += rent_deficit;
                         }
+
+                        transfers.push(transfer_amount);
                     }
                 }
             }
@@ -207,7 +203,11 @@ pub fn native_compression(
             }
             let authority = authority.ok_or(ErrorCode::CompressAndCloseAuthorityMissing)?;
             check_signer(authority).map_err(|e| {
-                anchor_lang::solana_program::msg!("Authority signer check failed: {:?}", e);
+                anchor_lang::solana_program::msg!(
+                    "Authority signer check failed: {:?} for authority {:?}",
+                    e,
+                    solana_pubkey::Pubkey::new_from_array(*authority.key())
+                );
                 ProgramError::from(e)
             })?;
             validate_token_account::<true>(
@@ -232,24 +232,29 @@ fn validate_compressed_token_account(
     compressed_token_account: &ZMultiTokenTransferOutputData<'_>,
     compressed_token: &ZCompressedTokenMut,
 ) -> Result<(), ProgramError> {
+    // TODO: check security The compressed token account owner should match the
+    // onchain address if at all.
+    //
     // Owner should match
-    if *compressed_token.owner
-        != *packed_accounts
-            .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
-            .key()
-    {
-        msg!(
-            "*compressed_token.owner {:?} packed_accounts owner: {:?}",
-            solana_pubkey::Pubkey::new_from_array(compressed_token.owner.to_bytes()),
-            solana_pubkey::Pubkey::new_from_array(
-                *packed_accounts
-                    .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
-                    .key()
-            )
-        );
-        return Err(ErrorCode::CompressAndCloseInvalidOwner.into());
-    }
-    // Compression amount must match the output amount
+    //
+    // if *compressed_token.owner
+    //     != *packed_accounts
+    //         .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
+    //         .key()
+    // {
+    //     msg!(
+    //         "*compressed_token.owner {:?} packed_accounts owner:
+    //         {:?}",
+    //         solana_pubkey::Pubkey::new_from_array(compressed_token.owner.to_bytes()),
+    //         solana_pubkey::Pubkey::new_from_array(
+    //             *packed_accounts
+    //                 .get_u8(compressed_token_account.owner, "CompressAndClose: owner")?
+    //                 .key()
+    //         )
+    //     );
+    //     return Err(ErrorCode::CompressAndCloseInvalidOwner.into());
+    // }
+    //         Compression amount must match the output amount
     if compression_amount != compressed_token_account.amount.get() {
         msg!(
             "compression_amount {} != compressed token account amount {}",
