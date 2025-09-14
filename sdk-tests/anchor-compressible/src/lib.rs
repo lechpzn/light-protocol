@@ -587,7 +587,6 @@ pub mod anchor_compressible {
             remaining_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
             fee_payer: &anchor_lang::prelude::AccountInfo<'info>,
             compressed_token_program: &anchor_lang::prelude::UncheckedAccount<'info>,
-            compressed_token_rent_payer: &anchor_lang::prelude::AccountInfo<'info>,
             compressed_token_rent_recipient: &anchor_lang::prelude::AccountInfo<'info>,
             compressed_token_rent_authority: &anchor_lang::prelude::AccountInfo<'info>,
             compressed_token_cpi_authority: &anchor_lang::prelude::UncheckedAccount<'info>,
@@ -646,12 +645,20 @@ pub mod anchor_compressible {
                             anchor_lang::prelude::ErrorCode::AccountDidNotDeserialize
                         )
                     })?;
+                    msg!(
+                        "compressible_config.rent_recipient: {:?}",
+                        compressible_config
+                    );
 
                     if compressible_config.rent_recipient != compressed_token_rent_recipient.key() {
                         msg!(
                             "Rent recipient passed: {:?} does not match config {:?}",
                             compressed_token_rent_recipient.key(),
                             compressible_config.rent_recipient,
+                        );
+                        msg!(
+                            "compressible_config.rent_recipient: {:?}",
+                            compressible_config.rent_recipient.to_bytes()
                         );
                         panic!("Rent recipient does not match config");
                     }
@@ -662,7 +669,6 @@ pub mod anchor_compressible {
                         mint: mint_info.clone(),
                         owner: authority.clone().to_account_info(),
                         rent_authority: compressed_token_rent_authority.clone().to_account_info(),
-                        // rent_recipient: compressible_config.rent_recipient.to_account_info(),
                         rent_recipient: compressed_token_rent_recipient.clone().to_account_info(),
                         pre_pay_num_epochs: 1,
                         write_top_up_lamports: None,
@@ -693,8 +699,7 @@ pub mod anchor_compressible {
                     <[_]>::into_vec(Box::new([fee_payer.to_account_info()]));
                 all_account_infos.extend(compressed_token_cpi_authority.to_account_infos());
                 all_account_infos.extend(compressed_token_program.to_account_infos());
-                all_account_infos.extend(compressed_token_rent_payer.to_account_infos());
-                all_account_infos.extend(compressed_token_rent_recipient.to_account_infos());
+                all_account_infos.extend(compressed_token_rent_recipient.to_account_infos()); // is also the rent_payer
                 all_account_infos.extend(config.to_account_infos());
                 all_account_infos.extend(cpi_accounts.to_account_infos());
                 let seed_refs: Vec<&[u8]> =
@@ -836,7 +841,6 @@ pub mod anchor_compressible {
                 &ctx.remaining_accounts,
                 &fee_payer,
                 &ctx.accounts.compressed_token_program,
-                &ctx.accounts.compressed_token_rent_payer.to_account_info(),
                 &compressed_token_rent_recipient,
                 &ctx.accounts.compressed_token_rent_authority,
                 &ctx.accounts.compressed_token_cpi_authority,

@@ -41,6 +41,9 @@ pub const ADDRESS_SPACE: [Pubkey; 1] = [pubkey!("EzKE84aVTkCUhDHLELqyJaq1Y7UVVmq
 pub const RENT_RECIPIENT: Pubkey = pubkey!("CLEuMG7pzJX9xAuKCFzBP154uiG1GaNo4Fq7x6KAcAfG");
 pub const TOKEN_PROGRAM_ID: Pubkey = pubkey!("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
+pub const CTOKEN_RENT_PAYER_AND_RECIPIENT: Pubkey =
+    pubkey!("14GGjbqyMp5KGYUCgaSyxGyJJTE9ob8dbALNp8bwZN5Y");
+pub const CTOKEN_RENT_AUTHORITY: Pubkey = pubkey!("8r3QmazwoLHYppYWysXPgUxYJ3Khn7vh3e313jYDcCKy");
 #[tokio::test]
 async fn test_create_and_decompress_two_accounts() {
     let program_id = anchor_compressible::ID;
@@ -314,7 +317,7 @@ async fn test_double_decompression_attack() {
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(&program_id, 0).0,
                 rent_payer: payer.pubkey(),
-                compressed_token_rent_payer: payer.pubkey(),
+                compressed_token_rent_payer: CTOKEN_RENT_PAYER_AND_RECIPIENT,
                 compressed_token_rent_authority: payer.pubkey(),
                 compressed_token_compressible_config:
                     compressed_token::derive_ctoken_program_config(None).0,
@@ -1035,8 +1038,8 @@ async fn decompress_multiple_pdas_with_ctoken(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(&program_id, 0).0,
                 rent_payer: payer.pubkey(),
-                compressed_token_rent_payer: payer.pubkey(),
-                compressed_token_rent_authority: payer.pubkey(),
+                compressed_token_rent_payer: CTOKEN_RENT_PAYER_AND_RECIPIENT,
+                compressed_token_rent_authority: CTOKEN_RENT_AUTHORITY,
                 compressed_token_compressible_config:
                     compressed_token::derive_ctoken_program_config(None).0,
                 compressed_token_program: compressed_token::id(),
@@ -1254,8 +1257,8 @@ async fn decompress_multiple_pdas(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(&program_id, 0).0,
                 rent_payer: payer.pubkey(),
-                compressed_token_rent_payer: payer.pubkey(),
-                compressed_token_rent_authority: payer.pubkey(),
+                compressed_token_rent_payer: CTOKEN_RENT_PAYER_AND_RECIPIENT,
+                compressed_token_rent_authority: CTOKEN_RENT_AUTHORITY,
                 compressed_token_compressible_config:
                     compressed_token::derive_ctoken_program_config(None).0,
                 compressed_token_program: compressed_token::id(),
@@ -1804,8 +1807,8 @@ async fn decompress_single_user_record(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(&program_id, 0).0,
                 rent_payer: payer.pubkey(),
-                compressed_token_rent_payer: payer.pubkey(),
-                compressed_token_rent_authority: payer.pubkey(),
+                compressed_token_rent_payer: CTOKEN_RENT_PAYER_AND_RECIPIENT,
+                compressed_token_rent_authority: CTOKEN_RENT_AUTHORITY,
                 compressed_token_compressible_config:
                     compressed_token::derive_ctoken_program_config(None).0,
                 compressed_token_program: compressed_token::id(),
@@ -2173,8 +2176,8 @@ async fn decompress_single_game_session(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(&program_id, 0).0,
                 rent_payer: payer.pubkey(),
-                compressed_token_rent_payer: payer.pubkey(),
-                compressed_token_rent_authority: payer.pubkey(),
+                compressed_token_rent_payer: CTOKEN_RENT_PAYER_AND_RECIPIENT,
+                compressed_token_rent_authority: CTOKEN_RENT_AUTHORITY,
                 compressed_token_compressible_config:
                     compressed_token::derive_ctoken_program_config(None).0,
                 compressed_token_program: compressed_token::id(),
@@ -2578,8 +2581,8 @@ async fn compress_token_account_after_decompress(
                 rent_recipient: RENT_RECIPIENT,
                 compressed_token_program: compressed_token::id(),
                 compressed_token_cpi_authority: compressed_token::cpi_authority(),
-                compressed_token_rent_recipient: user.pubkey(),
-                compressed_token_rent_authority: user.pubkey(),
+                compressed_token_rent_recipient: CTOKEN_RENT_PAYER_AND_RECIPIENT,
+                compressed_token_rent_authority: CTOKEN_RENT_AUTHORITY,
             }
             .to_account_metas(None),
             vec![user_record_seeds, game_session_seeds, token_account_seeds],

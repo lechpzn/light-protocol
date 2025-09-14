@@ -39,7 +39,8 @@ pub struct CreateCompressibleTokenAccountSigned<'info> {
     pub owner: AccountInfo<'info>,
     /// The authority that can close this account (in addition to owner)
     pub rent_authority: AccountInfo<'info>,
-    /// The recipient of lamports when the account is closed by rent authority
+    /// The recipient of lamports when the account is closed by rent authority,
+    /// and the payer of rent-exemption.
     pub rent_recipient: AccountInfo<'info>,
     /// Number of epochs of rent to prepay
     pub pre_pay_num_epochs: u64,
@@ -70,7 +71,6 @@ pub fn create_compressible_token_account_signed<'info>(
         inputs.token_account,
         inputs.mint,
         inputs.owner,
-        inputs.rent_authority,
         inputs.rent_recipient,
         inputs.compressible_config,
     ];
