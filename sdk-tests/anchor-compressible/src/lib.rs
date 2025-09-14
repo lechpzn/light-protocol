@@ -587,8 +587,7 @@ pub mod anchor_compressible {
             remaining_accounts: &[anchor_lang::prelude::AccountInfo<'info>],
             fee_payer: &anchor_lang::prelude::AccountInfo<'info>,
             compressed_token_program: &anchor_lang::prelude::UncheckedAccount<'info>,
-            compressed_token_rent_recipient: &anchor_lang::prelude::AccountInfo<'info>,
-            compressed_token_rent_authority: &anchor_lang::prelude::AccountInfo<'info>,
+            compressed_token_rent_payer_and_recipient: &anchor_lang::prelude::AccountInfo<'info>,
             compressed_token_cpi_authority: &anchor_lang::prelude::UncheckedAccount<'info>,
             compressed_token_compressible_config: &anchor_lang::prelude::AccountInfo<'info>,
             config: &anchor_lang::prelude::AccountInfo<'info>,
@@ -635,45 +634,19 @@ pub mod anchor_compressible {
                     let owned_signer_seeds: Vec<Vec<u8>> =
                         ctoken_signer_seeds.iter().map(|s| s.clone()).collect();
 
-                    use light_compressible::config::CompressibleConfig;
-                    let config_data = compressed_token_compressible_config.try_borrow_data()?;
-                    let compressible_config = CompressibleConfig::try_deserialize(
-                        &mut &config_data[..],
-                    )
-                    .map_err(|e| {
-                        anchor_lang::prelude::error!(
-                            anchor_lang::prelude::ErrorCode::AccountDidNotDeserialize
-                        )
-                    })?;
-                    msg!(
-                        "compressible_config.rent_recipient: {:?}",
-                        compressible_config
-                    );
-
-                    if compressible_config.rent_recipient != compressed_token_rent_recipient.key() {
-                        msg!(
-                            "Rent recipient passed: {:?} does not match config {:?}",
-                            compressed_token_rent_recipient.key(),
-                            compressible_config.rent_recipient,
-                        );
-                        msg!(
-                            "compressible_config.rent_recipient: {:?}",
-                            compressible_config.rent_recipient.to_bytes()
-                        );
-                        panic!("Rent recipient does not match config");
-                    }
 
                     let inputs = CreateCompressibleTokenAccountSigned {
                         payer: fee_payer.clone().to_account_info(),
                         token_account: owner_info.clone(),
                         mint: mint_info.clone(),
                         owner: authority.clone().to_account_info(),
-                        rent_authority: compressed_token_rent_authority.clone().to_account_info(),
-                        rent_recipient: compressed_token_rent_recipient.clone().to_account_info(),
-                        pre_pay_num_epochs: 1,
-                        write_top_up_lamports: None,
+                        rent_recipient: compressed_token_rent_payer_and_recipient
+                            .clone()
+                            .to_account_info(),
+                        pre_pay_num_epochs: 1, // TODO: make this configurable
+                        write_top_up_lamports: None, // TODO: make this configurable
                         compressible_config: compressed_token_compressible_config.to_account_info(),
-                        signer_seeds: vec![owned_signer_seeds], // TODO: add seeds for the payer pda.
+                        signer_seeds: vec![owned_signer_seeds],
                     };
                     create_compressible_token_account_signed(inputs)?;
                 }
@@ -699,7 +672,8 @@ pub mod anchor_compressible {
                     <[_]>::into_vec(Box::new([fee_payer.to_account_info()]));
                 all_account_infos.extend(compressed_token_cpi_authority.to_account_infos());
                 all_account_infos.extend(compressed_token_program.to_account_infos());
-                all_account_infos.extend(compressed_token_rent_recipient.to_account_infos()); // is also the rent_payer
+                all_account_infos
+                    .extend(compressed_token_rent_payer_and_recipient.to_account_infos());
                 all_account_infos.extend(config.to_account_infos());
                 all_account_infos.extend(cpi_accounts.to_account_infos());
                 let seed_refs: Vec<&[u8]> =
@@ -833,16 +807,12 @@ pub mod anchor_compressible {
         }
         // init tokens.
         if has_tokens {
-            // TODO: allow 3rd party rent_sponsor and rent_authority.
-            let compressed_token_rent_recipient =
-                ctx.accounts.compressed_token_rent_payer.to_account_info();
             process_tokens(
                 &ctx.accounts,
                 &ctx.remaining_accounts,
                 &fee_payer,
                 &ctx.accounts.compressed_token_program,
-                &compressed_token_rent_recipient,
-                &ctx.accounts.compressed_token_rent_authority,
+                &ctx.accounts.compressed_token_rent_payer_and_recipient,
                 &ctx.accounts.compressed_token_cpi_authority,
                 &ctx.accounts.compressed_token_compressible_config,
                 &ctx.accounts.config,
@@ -1546,9 +1516,7 @@ pub struct DecompressAccountsIdempotent<'info> {
     pub rent_payer: Signer<'info>,
     /// UNCHECKED: Anyone can pay to init compressed tokens.
     #[account(mut)]
-    pub compressed_token_rent_payer: UncheckedAccount<'info>,
-    /// CHECK: Required for seed derivation - validated by program logic
-    pub compressed_token_rent_authority: AccountInfo<'info>,
+    pub compressed_token_rent_payer_and_recipient: UncheckedAccount<'info>,
     /// CHECK: Required for seed derivation - validated by program logic
     pub compressed_token_compressible_config: UncheckedAccount<'info>,
     /// Compressed token program (always required in mixed variant)

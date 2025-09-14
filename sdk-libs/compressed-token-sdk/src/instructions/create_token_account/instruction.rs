@@ -37,8 +37,6 @@ pub struct CreateCompressibleTokenAccountSigned<'info> {
     pub mint: AccountInfo<'info>,
     /// The owner of the token account
     pub owner: AccountInfo<'info>,
-    /// The authority that can close this account (in addition to owner)
-    pub rent_authority: AccountInfo<'info>,
     /// The recipient of lamports when the account is closed by rent authority,
     /// and the payer of rent-exemption.
     pub rent_recipient: AccountInfo<'info>,
