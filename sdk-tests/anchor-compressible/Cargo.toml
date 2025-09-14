@@ -30,6 +30,7 @@ anchor-spl = { version = "=0.31.1", git = "https://github.com/lightprotocol/anch
 light-ctoken-types = { workspace = true }
 light-compressed-token-sdk = { workspace = true, features = ["anchor"] }
 light-compressed-token-types = { workspace = true, features = ["anchor"] }
+light-compressible = { workspace = true, features = ["anchor"] }
 
 [dev-dependencies]
 light-token-client = { workspace = true }

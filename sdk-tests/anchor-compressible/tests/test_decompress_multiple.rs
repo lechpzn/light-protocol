@@ -8,7 +8,7 @@ use anchor_lang::{
 use light_client::indexer::CompressedAccount;
 use light_compressed_account::address::derive_address;
 use light_compressed_token_sdk::{
-    instructions::{derive_compressed_mint_address, derive_pool_pda, find_spl_mint_address},
+    instructions::{derive_compressed_mint_address, find_spl_mint_address},
     CPI_AUTHORITY_PDA,
 };
 use light_compressible_client::CompressibleInstruction;
@@ -315,10 +315,9 @@ async fn test_double_decompression_attack() {
                 config: CompressibleConfig::derive_pda(&program_id, 0).0,
                 rent_payer: payer.pubkey(),
                 compressed_token_rent_payer: payer.pubkey(),
-                compressed_token_rent_authority: rpc
-                    .test_accounts()
-                    .funding_pool_config
-                    .rent_authority_pubkey,
+                compressed_token_rent_authority: payer.pubkey(),
+                compressed_token_compressible_config:
+                    compressed_token::derive_ctoken_program_config(None).0,
                 compressed_token_program: compressed_token::id(),
                 compressed_token_cpi_authority: compressed_token::cpi_authority(),
                 some_mint: payer.pubkey(),
@@ -1004,24 +1003,6 @@ async fn decompress_multiple_pdas_with_ctoken(
 
     let output_state_tree_info = rpc.get_random_state_tree_info().unwrap();
 
-    assert_eq!(compressed_token_account.token.owner, native_token_account);
-
-    let compressed_token_rent_authority = rpc
-        .test_accounts()
-        .funding_pool_config
-        .rent_authority_pubkey;
-    let (token_rent_payer_and_recipient_pda, bump) =
-        derive_pool_pda(&compressed_token_rent_authority);
-
-    println!(
-        "derived token rent payer and recipient pda: {:?}, bump: {:?}",
-        token_rent_payer_and_recipient_pda, bump
-    );
-    println!(
-        "PDA as bytes: {:?}",
-        token_rent_payer_and_recipient_pda.to_bytes()
-    );
-    println!("AUTH as bytes: {:?}", payer.pubkey().to_bytes());
     let instruction =
         light_compressible_client::CompressibleInstruction::decompress_accounts_idempotent(
             program_id,
@@ -1054,8 +1035,10 @@ async fn decompress_multiple_pdas_with_ctoken(
                 fee_payer: payer.pubkey(),
                 config: CompressibleConfig::derive_pda(&program_id, 0).0,
                 rent_payer: payer.pubkey(),
-                compressed_token_rent_payer: token_rent_payer_and_recipient_pda,
-                compressed_token_rent_authority,
+                compressed_token_rent_payer: payer.pubkey(),
+                compressed_token_rent_authority: payer.pubkey(),
+                compressed_token_compressible_config:
+                    compressed_token::derive_ctoken_program_config(None).0,
                 compressed_token_program: compressed_token::id(),
                 compressed_token_cpi_authority: compressed_token::cpi_authority(),
                 some_mint: compressed_token_account.token.mint,
@@ -1272,11 +1255,10 @@ async fn decompress_multiple_pdas(
                 config: CompressibleConfig::derive_pda(&program_id, 0).0,
                 rent_payer: payer.pubkey(),
                 compressed_token_rent_payer: payer.pubkey(),
+                compressed_token_rent_authority: payer.pubkey(),
+                compressed_token_compressible_config:
+                    compressed_token::derive_ctoken_program_config(None).0,
                 compressed_token_program: compressed_token::id(),
-                compressed_token_rent_authority: rpc
-                    .test_accounts()
-                    .funding_pool_config
-                    .rent_authority_pubkey,
                 compressed_token_cpi_authority: compressed_token::cpi_authority(),
                 some_mint: payer.pubkey(),
             }
@@ -1711,16 +1693,8 @@ async fn compress_record(
             rent_recipient: RENT_RECIPIENT,
             compressed_token_program: compressed_token::id(),
             compressed_token_cpi_authority: compressed_token::cpi_authority(),
-            compressed_token_rent_recipient: derive_pool_pda(
-                &rpc.test_accounts()
-                    .funding_pool_config
-                    .rent_authority_pubkey,
-            )
-            .0,
-            compressed_token_rent_authority: rpc
-                .test_accounts()
-                .funding_pool_config
-                .rent_authority_pubkey,
+            compressed_token_rent_recipient: payer.pubkey(),
+            compressed_token_rent_authority: payer.pubkey(),
         }
         .to_account_metas(None),
         vec![anchor_compressible::get_userrecord_seeds(&payer.pubkey()).0], // signer_seeds
@@ -1831,10 +1805,9 @@ async fn decompress_single_user_record(
                 config: CompressibleConfig::derive_pda(&program_id, 0).0,
                 rent_payer: payer.pubkey(),
                 compressed_token_rent_payer: payer.pubkey(),
-                compressed_token_rent_authority: rpc
-                    .test_accounts()
-                    .funding_pool_config
-                    .rent_authority_pubkey,
+                compressed_token_rent_authority: payer.pubkey(),
+                compressed_token_compressible_config:
+                    compressed_token::derive_ctoken_program_config(None).0,
                 compressed_token_program: compressed_token::id(),
                 compressed_token_cpi_authority: compressed_token::cpi_authority(),
                 some_mint: payer.pubkey(),
@@ -2035,16 +2008,8 @@ async fn compress_placeholder_record(
                 rent_recipient: RENT_RECIPIENT,
                 compressed_token_program: compressed_token::id(),
                 compressed_token_cpi_authority: compressed_token::cpi_authority(),
-                compressed_token_rent_recipient: derive_pool_pda(
-                    &rpc.test_accounts()
-                        .funding_pool_config
-                        .rent_authority_pubkey,
-                )
-                .0,
-                compressed_token_rent_authority: rpc
-                    .test_accounts()
-                    .funding_pool_config
-                    .rent_authority_pubkey,
+                compressed_token_rent_recipient: payer.pubkey(),
+                compressed_token_rent_authority: payer.pubkey(),
             }
             .to_account_metas(None),
             vec![placeholder_seeds.0],
@@ -2141,16 +2106,8 @@ async fn compress_placeholder_record_for_double_test(
                 rent_recipient: RENT_RECIPIENT,
                 compressed_token_program: compressed_token::id(),
                 compressed_token_cpi_authority: compressed_token::cpi_authority(),
-                compressed_token_rent_recipient: derive_pool_pda(
-                    &rpc.test_accounts()
-                        .funding_pool_config
-                        .rent_authority_pubkey,
-                )
-                .0,
-                compressed_token_rent_authority: rpc
-                    .test_accounts()
-                    .funding_pool_config
-                    .rent_authority_pubkey,
+                compressed_token_rent_recipient: payer.pubkey(),
+                compressed_token_rent_authority: payer.pubkey(),
             }
             .to_account_metas(None),
             vec![placeholder_seeds.0],
@@ -2217,10 +2174,9 @@ async fn decompress_single_game_session(
                 config: CompressibleConfig::derive_pda(&program_id, 0).0,
                 rent_payer: payer.pubkey(),
                 compressed_token_rent_payer: payer.pubkey(),
-                compressed_token_rent_authority: rpc
-                    .test_accounts()
-                    .funding_pool_config
-                    .rent_authority_pubkey,
+                compressed_token_rent_authority: payer.pubkey(),
+                compressed_token_compressible_config:
+                    compressed_token::derive_ctoken_program_config(None).0,
                 compressed_token_program: compressed_token::id(),
                 compressed_token_cpi_authority: compressed_token::cpi_authority(),
                 some_mint: payer.pubkey(),
@@ -2622,16 +2578,8 @@ async fn compress_token_account_after_decompress(
                 rent_recipient: RENT_RECIPIENT,
                 compressed_token_program: compressed_token::id(),
                 compressed_token_cpi_authority: compressed_token::cpi_authority(),
-                compressed_token_rent_recipient: derive_pool_pda(
-                    &rpc.test_accounts()
-                        .funding_pool_config
-                        .rent_authority_pubkey,
-                )
-                .0,
-                compressed_token_rent_authority: rpc
-                    .test_accounts()
-                    .funding_pool_config
-                    .rent_authority_pubkey,
+                compressed_token_rent_recipient: user.pubkey(),
+                compressed_token_rent_authority: user.pubkey(),
             }
             .to_account_metas(None),
             vec![user_record_seeds, game_session_seeds, token_account_seeds],

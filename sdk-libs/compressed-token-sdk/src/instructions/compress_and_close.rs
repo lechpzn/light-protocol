@@ -1,10 +1,8 @@
-use anchor_lang::ToAccountInfo;
 use light_compressed_account::instruction_data::cpi_context::CompressedCpiContext;
 use light_compressed_token_types::CPI_AUTHORITY_PDA_SEED;
 use light_ctoken_types::state::{CompressedToken, ZExtensionStruct};
 use light_profiler::profile;
 use light_sdk::{
-    cpi::CpiAccountsSmall,
     error::LightSdkError,
     instruction::{AccountMetasVec, PackedAccounts, SystemAccountMetaConfig},
 };
@@ -21,14 +19,13 @@ use crate::{
     account2::CTokenAccount2,
     error::TokenSdkError,
     instructions::{
-        derive_pool_pda,
         transfer2::{
             account_metas::Transfer2AccountsMetaConfig, create_transfer2_instruction,
             Transfer2Config, Transfer2Inputs,
         },
         CTokenDefaultAccounts,
     },
-    AccountInfoToCompress, TokenAccountToCompress,
+    AccountInfoToCompress,
 };
 
 /// Struct to hold all the indices needed for CompressAndClose operation
@@ -425,12 +422,6 @@ pub fn compress_and_close_ctoken_accounts_signed<'b, 'info>(
     remaining_accounts: &[AccountInfo<'info>],
     cpi_signer: CpiSigner,
 ) -> Result<(), ProgramError> {
-    // CHECK: rent_recipient
-    let (derived_recipient, _) = derive_pool_pda(&compressed_token_rent_authority.key);
-    if derived_recipient != *compressed_token_rent_recipient.key {
-        panic!("Derived compressed token rent recipient must match passed recipient");
-    }
-
     let mut packed_accounts = Vec::with_capacity(post_system.len() + 3);
     packed_accounts.extend_from_slice(post_system);
     packed_accounts.push(cpi_authority);

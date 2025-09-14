@@ -210,22 +210,18 @@ pub enum CTokenAccountVariant {
 #[program]
 pub mod anchor_compressible {
 
-    use light_compressed_token_sdk::{
-        instructions::{
-            compress_and_close::compress_and_close_ctoken_accounts_signed,
-            create_mint_action_cpi,
-            create_token_account::{
-                create_compressible_token_account_signed, CreateCompressibleTokenAccount,
-                CreateCompressibleTokenAccountSigned,
-            },
-            decompress_full_ctoken_accounts_with_indices, derive_pool_pda, find_spl_mint_address,
-            DecompressFullIndices, MintActionInputs,
+    use light_compressed_token_sdk::instructions::{
+        compress_and_close::compress_and_close_ctoken_accounts_signed,
+        create_mint_action_cpi,
+        create_token_account::{
+            create_compressible_token_account_signed, CreateCompressibleTokenAccount,
+            CreateCompressibleTokenAccountSigned,
         },
-        CPI_AUTHORITY_PDA_SEED,
+        find_spl_mint_address,
+        mint_action::cpi_accounts,
+        DecompressFullIndices, MintActionInputs,
     };
-    use light_sdk::compressible::{
-        compress_account::prepare_account_for_compression, into_compressed_meta_with_address,
-    };
+    use light_sdk::compressible::compress_account::prepare_account_for_compression;
     use light_sdk_types::cpi_context_write::CpiContextWriteAccounts;
 
     use super::*;
@@ -595,6 +591,7 @@ pub mod anchor_compressible {
             compressed_token_rent_recipient: &anchor_lang::prelude::AccountInfo<'info>,
             compressed_token_rent_authority: &anchor_lang::prelude::AccountInfo<'info>,
             compressed_token_cpi_authority: &anchor_lang::prelude::UncheckedAccount<'info>,
+            compressed_token_compressible_config: &anchor_lang::prelude::AccountInfo<'info>,
             config: &anchor_lang::prelude::AccountInfo<'info>,
             compressed_token_accounts: Vec<(
                 light_sdk::token::PackedCompressibleTokenDataWithVariant<CTokenAccountVariant>,
@@ -618,12 +615,6 @@ pub mod anchor_compressible {
             let authority = cpi_accounts.authority().unwrap();
             let cpi_context = cpi_accounts.cpi_context().unwrap();
 
-            let (derived_compressed_token_rent_recipient, payer_pda_bump) =
-                derive_pool_pda(&compressed_token_rent_authority.key());
-
-            if derived_compressed_token_rent_recipient != *compressed_token_rent_recipient.key {
-                panic!("Derived compressed token rent recipient must match compressed token rent recipient");
-            }
             for (token_data, meta) in compressed_token_accounts.into_iter() {
                 let owner_index: u8 = token_data.token_data.owner;
                 let mint_index: u8 = token_data.token_data.mint;
@@ -645,16 +636,37 @@ pub mod anchor_compressible {
                     let owned_signer_seeds: Vec<Vec<u8>> =
                         ctoken_signer_seeds.iter().map(|s| s.clone()).collect();
 
+                    use light_compressible::config::CompressibleConfig;
+                    let config_data = compressed_token_compressible_config.try_borrow_data()?;
+                    let compressible_config = CompressibleConfig::try_deserialize(
+                        &mut &config_data[..],
+                    )
+                    .map_err(|e| {
+                        anchor_lang::prelude::error!(
+                            anchor_lang::prelude::ErrorCode::AccountDidNotDeserialize
+                        )
+                    })?;
+
+                    if compressible_config.rent_recipient != compressed_token_rent_recipient.key() {
+                        msg!(
+                            "Rent recipient passed: {:?} does not match config {:?}",
+                            compressed_token_rent_recipient.key(),
+                            compressible_config.rent_recipient,
+                        );
+                        panic!("Rent recipient does not match config");
+                    }
+
                     let inputs = CreateCompressibleTokenAccountSigned {
                         payer: fee_payer.clone().to_account_info(),
                         token_account: owner_info.clone(),
                         mint: mint_info.clone(),
                         owner: authority.clone().to_account_info(),
                         rent_authority: compressed_token_rent_authority.clone().to_account_info(),
+                        // rent_recipient: compressible_config.rent_recipient.to_account_info(),
                         rent_recipient: compressed_token_rent_recipient.clone().to_account_info(),
                         pre_pay_num_epochs: 1,
                         write_top_up_lamports: None,
-                        payer_pda_bump,
+                        compressible_config: compressed_token_compressible_config.to_account_info(),
                         signer_seeds: vec![owned_signer_seeds], // TODO: add seeds for the payer pda.
                     };
                     create_compressible_token_account_signed(inputs)?;
@@ -828,6 +840,7 @@ pub mod anchor_compressible {
                 &compressed_token_rent_recipient,
                 &ctx.accounts.compressed_token_rent_authority,
                 &ctx.accounts.compressed_token_cpi_authority,
+                &ctx.accounts.compressed_token_compressible_config,
                 &ctx.accounts.config,
                 compressed_token_accounts,
                 proof,
@@ -1532,6 +1545,8 @@ pub struct DecompressAccountsIdempotent<'info> {
     pub compressed_token_rent_payer: UncheckedAccount<'info>,
     /// CHECK: Required for seed derivation - validated by program logic
     pub compressed_token_rent_authority: AccountInfo<'info>,
+    /// CHECK: Required for seed derivation - validated by program logic
+    pub compressed_token_compressible_config: UncheckedAccount<'info>,
     /// Compressed token program (always required in mixed variant)
     /// CHECK: Program ID validated to be cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m
     pub compressed_token_program: UncheckedAccount<'info>,

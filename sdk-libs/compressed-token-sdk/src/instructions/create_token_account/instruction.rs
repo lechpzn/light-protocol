@@ -45,9 +45,8 @@ pub struct CreateCompressibleTokenAccountSigned<'info> {
     pub pre_pay_num_epochs: u64,
     /// Initial lamports to top up for rent payments (optional)
     pub write_top_up_lamports: Option<u32>,
-    /// Bump seed for the pool PDA
-    pub payer_pda_bump: u8,
-
+    /// The CompressibleConfig account
+    pub compressible_config: AccountInfo<'info>,
     // Owned seeds
     pub signer_seeds: Vec<Vec<Vec<u8>>>,
 }
@@ -59,11 +58,10 @@ pub fn create_compressible_token_account_signed<'info>(
         account_pubkey: *inputs.token_account.key,
         mint_pubkey: *inputs.mint.key,
         owner_pubkey: *inputs.owner.key,
-        rent_authority: *inputs.rent_authority.key,
+        compressible_config: *inputs.compressible_config.key,
         rent_recipient: *inputs.rent_recipient.key,
         pre_pay_num_epochs: inputs.pre_pay_num_epochs,
         write_top_up_lamports: inputs.write_top_up_lamports,
-        payer_pda_bump: inputs.payer_pda_bump,
     };
     let ix = create_compressible_token_account(params)
         .map_err(|_| TokenSdkError::CTokenError(CTokenError::InvalidInstructionData))?;
@@ -74,6 +72,7 @@ pub fn create_compressible_token_account_signed<'info>(
         inputs.owner,
         inputs.rent_authority,
         inputs.rent_recipient,
+        inputs.compressible_config,
     ];
     // Convert owned Vec<Vec<Vec<u8>>> —> &[&[&[u8]]]
     let seed_refs_level1: Vec<Vec<&[u8]>> = inputs

@@ -284,6 +284,7 @@ dependencies = [
  "light-compressed-account",
  "light-compressed-token-sdk",
  "light-compressed-token-types",
+ "light-compressible",
  "light-compressible-client",
  "light-ctoken-types",
  "light-hasher",

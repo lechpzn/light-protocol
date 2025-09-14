@@ -64,4 +64,28 @@ pub mod compressed_token {
             &ID.to_bytes(),
         )
     }
+
+    pub fn derive_ctoken_program_config(version: Option<u64>) -> (Pubkey, u8) {
+        let version = version.unwrap_or(1);
+        let registry_program_id =
+            solana_pubkey::pubkey!("Lighton6oQpVkeewmo2mcPTQQp7kYHr4fWpAgJyEmDX");
+        let (compressible_config, config_bump) = Pubkey::find_program_address(
+            &[b"compressible_config", &version.to_le_bytes()],
+            &registry_program_id,
+        );
+        (compressible_config, config_bump)
+    }
+
+    pub fn derive_ctoken_rent_recipient(version: Option<u64>) -> (Pubkey, u8) {
+        // Derive the rent_recipient PDA
+        let version = version.unwrap_or(1);
+        Pubkey::find_program_address(
+            &[
+                b"rent_recipient".as_slice(),
+                (version as u16).to_le_bytes().as_slice(),
+                &[0],
+            ],
+            &solana_pubkey::pubkey!("cTokenmWW8bLPjZEBAUgYy3zKxQZW6VKi7bqNFEVv3m"),
+        )
+    }
 }
